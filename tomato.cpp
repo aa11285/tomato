@@ -43,7 +43,6 @@ Tomato::Tomato(QWidget *parent) :
     verifyStartWithWindows();
 
     QSettings settings("tomato.ini",QSettings::IniFormat);
-    qDebug() << settings.value("InfinityMode").toInt();
     ui->checkInfinity->setChecked(settings.value("InfinityMode").toInt());
 }
 

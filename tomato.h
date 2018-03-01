@@ -33,6 +33,11 @@ class Tomato : public QDialog
         void on_spinRest_valueChanged(int arg1);
         void on_buttonReset_clicked();
 
+
+        void on_checkStartup_stateChanged(int arg1);
+
+        void on_checkInfinity_stateChanged(int arg1);
+
     private:
         Ui::Tomato *ui;
 
@@ -47,6 +52,7 @@ class Tomato : public QDialog
         void cancelTomato();
         void continueTomato();
         void startRest();
+        void verifyStartWithWindows();
 
         QAction *openSettingsAction;
         QAction *quitAction;

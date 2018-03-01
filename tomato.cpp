@@ -9,8 +9,8 @@
 #include <QCloseEvent>
 #include <QTimer>
 #include <QTime>
-
-#include <QToolTip>
+#include <QSettings>
+#include <QDir>
 
 #include <QtDebug>
 
@@ -19,6 +19,7 @@ Tomato::Tomato(QWidget *parent) :
     ui(new Ui::Tomato)
 {
     ui->setupUi(this);
+    setWindowFlags(Qt::CustomizeWindowHint | Qt::WindowCloseButtonHint); // remove "?" on dialog window
 
     focusDuration = focusDefault;
     restDuration = restDefault;
@@ -38,6 +39,12 @@ Tomato::Tomato(QWidget *parent) :
 
     timer = new QTimer(this);
     connect(timer,SIGNAL(timeout()),this,SLOT(updateTimer()));
+
+    verifyStartWithWindows();
+
+    QSettings settings("tomato.ini",QSettings::IniFormat);
+    qDebug() << settings.value("InfinityMode").toInt();
+    ui->checkInfinity->setChecked(settings.value("InfinityMode").toInt());
 }
 
 Tomato::~Tomato()
@@ -89,31 +96,31 @@ void Tomato::iconActivated(QSystemTrayIcon::ActivationReason reason)
         clickMenu->move(cursor().pos().x(),
                         cursor().pos().y() - clickMenu->size().height() + 1);
         switch(state) {
-            case IDLE: {
-                clickMenu->addAction(startAction);
-                clickMenu->show();
-                break;
-            }
-            case FOCUS: {
-                clickMenu->addAction(pauseAction);
-                clickMenu->addAction(cancelAction);
-                clickMenu->move(cursor().pos().x(),
-                                cursor().pos().y() - clickMenu->size().height()*2 + 1);
-                clickMenu->show();
-                break;
-            }
-            case PAUSE: {
-                clickMenu->addAction(continueAction);
-                clickMenu->show();
-                break;
-            }
-            case REST: {
-                clickMenu->addAction(cancelAction);
-                clickMenu->show();
-                break;
-            }
-            default:
-                ;
+        case IDLE: {
+            clickMenu->addAction(startAction);
+            clickMenu->show();
+            break;
+        }
+        case FOCUS: {
+            clickMenu->addAction(pauseAction);
+            clickMenu->addAction(cancelAction);
+            clickMenu->move(cursor().pos().x(),
+                            cursor().pos().y() - clickMenu->size().height()*2 + 1);
+            clickMenu->show();
+            break;
+        }
+        case PAUSE: {
+            clickMenu->addAction(continueAction);
+            clickMenu->show();
+            break;
+        }
+        case REST: {
+            clickMenu->addAction(cancelAction);
+            clickMenu->show();
+            break;
+        }
+        default:
+            ;
         }
     }
 
@@ -162,7 +169,7 @@ void Tomato::startTomato()
 {
     state = FOCUS;
     setIconState(state);
-    timer->start(1000);
+    timer->start(1000); // emit timeout signal every 1 second
 }
 
 void Tomato::startRest()
@@ -181,7 +188,7 @@ void Tomato::pauseTomato()
 
 void Tomato::cancelTomato()
 {
-    if(FOCUS==state) {
+    if(FOCUS == state) {
         trayIcon->showMessage("Tomato",
                               tr("Cancelled at %1 min").arg(elapsedSec/60),
                               QIcon(":/coffee"),
@@ -246,7 +253,46 @@ void Tomato::updateTimer()
                               1000);
         state = IDLE;
         setIconState(IDLE);
+
+        if ( ui->checkInfinity->isChecked() ) { // infinity mode
+            startTomato();
+        }
+    }
+}
+
+void Tomato::on_checkStartup_stateChanged(int arg1) // start with windows
+{
+        QSettings reg("HKEY_CURRENT_USER\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run",QSettings::NativeFormat);
+
+        if (arg1)
+        {
+            QString strAppPath = QDir::toNativeSeparators(QCoreApplication::applicationFilePath());
+            reg.setValue("tomato",strAppPath);
+        }
+        else
+        {
+            reg.setValue("tomato","");
+        }
+}
+
+void Tomato::verifyStartWithWindows()
+{
+    QSettings reg("HKEY_CURRENT_USER\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run",QSettings::NativeFormat);
+    QString strAppPath = QDir::toNativeSeparators(QCoreApplication::applicationFilePath());
+    if(reg.value("tomato").toString() == strAppPath) {
+        ui->checkStartup->setChecked(true);
     }
 }
 
 #endif
+
+void Tomato::on_checkInfinity_stateChanged(int arg1)
+{
+    QSettings settings("tomato.ini",QSettings::IniFormat);
+    if(!arg1) {
+        settings.setValue("InfinityMode",0);
+    }
+    else if(arg1) { // checked = 2
+        settings.setValue("InfinityMode",1);
+    }
+}
